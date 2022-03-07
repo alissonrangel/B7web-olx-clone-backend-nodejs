@@ -6,6 +6,7 @@ import Ad from '../models/Ad';
 import { v4 as uuidv4 } from 'uuid';
 import jimp from 'jimp';
 import State from '../models/State';
+import mongoose from 'mongoose';
 
 dotenv.config();
 
@@ -14,6 +15,17 @@ type Filter = {
   title?: any,
   category?: string,
   state?: string
+}
+
+type AdType = {
+  status?: string,
+  title?: any,
+  category?: string,
+  state?: string,
+  description?: string,
+  price?: number,
+  priceNegotiable?: boolean,
+  images?: [{url: string, default: boolean}]
 }
 
 const addImage = async (buffer: any) => {
@@ -55,6 +67,22 @@ export default {
 
     if (!title || !cat ) {
       res.json({error: 'Título e/ou categoria não foram preenchidos.'})
+      return;
+    }
+
+    if(cat.length < 12) {
+      res.json({error: 'Id de Categoria Inválido.'})
+      return;
+    }
+
+    if(mongoose.Types.ObjectId.isValid(cat)){
+      const category = await Category.findById(cat);
+      if(!category) {
+        res.json({error: 'Categoria Inexistente.'})
+        return;
+      }
+    } else {
+      res.json({error: 'Id de Categoria Inválido!'})
       return;
     }
 
@@ -196,6 +224,33 @@ export default {
     let userInfo = await User.findById(ad.idUser).exec();
     let stateInfo = await State.findById(ad.state).exec();
 
+    let others = [];
+
+    if (other) {
+      const otherData = await Ad.find({status: true, idUser: ad.idUser}).exec();
+
+      for (const item of otherData) {
+        if (item._id.toString() !== ad._id.toString()) {
+          
+          let image = `${process.env.BASE}/static/media/default.jpg`;
+
+          let defaultImg = item.images.find(e => e.default);
+
+          if (defaultImg) {
+            image = `${process.env.BASE}/static/media/${defaultImg.url}`;
+          }
+
+          others.push({
+            id: item._id,
+            title: item.title,
+            price: item.price,
+            priceNegotiable: item.priceNegotiable,
+            image
+          })
+        }
+      }
+    }
+
     res.json({
       id: ad._id,
       title: ad.title,
@@ -210,10 +265,110 @@ export default {
         name: userInfo?.name,
         email: userInfo?.email
       },
-      stateName: stateInfo?.name
+      stateName: stateInfo?.name,
+      others
     })
   },
   editAction: async (req: Request, res: Response) => {
+    let { id } = req.params;
+    let { title, status, price, priceneg, desc, cat, token } = req.body;
+
+    if (id.length < 12) {
+      res.json({error: 'ID inválido'})
+      return;
+    }
+
+    let ad = await Ad.findById(id).exec();
+
+    if(!ad) {
+      res.json({error: 'Anúncio inexistente!'});
+      return;
+    }
+
+    const user = await User.findOne({token}).exec();
+
+    if(user){
+      if (user._id.toString() !== ad.idUser) {
+        res.json({error: 'Este anúncio não é seu!'});
+        return;
+      }
+    }
+
+    let updates: AdType  = {};
+
+    if(title){
+      updates.title = title
+    }
+
+    if(price){
+      price = price.replace('.','').replace(',','.').replace('R$ ','');
+      price = parseFloat(price);
+      updates.price = price;
+    }
+
+    if(priceneg){
+      updates.priceNegotiable = priceneg;
+    }
+
+    if(status){
+      updates.status = status;
+    }
+
+    if(desc){
+      updates.description = desc;
+    }
+
+    if(cat){
+      const category = await Category.findOne({slug: cat}).exec();
+      if(!category){
+        res.json({error: 'Categoria inexistente!'});
+        return;
+      }
+
+      updates.category = category._id.toString();
+    }             
+
+    let result = await Ad.findByIdAndUpdate(id, {$set: updates});
+
+    let ad2 = await Ad.findById(id);
+
+    updates = {};
+    console.log("ad2, ", ad2);
     
+    if (ad2) {
+      let images = [];
+
+      for (const item of ad.images) {
+        images.push({url: item.url, default: item.default});
+      }
+      console.log("Images: ", images);
+      
+      if( req.files && req.files.img ){
+      
+        let image: any = req.files.img;
+
+        console.log("Image, ", image);
+        
+        if (image.length === undefined) {
+          if (['image/jpeg','image/jpg','image/png'].includes(image.mimetype)) {
+            let url = await addImage(image.data);
+            images.push({url, default: false});
+            console.log("Aqui ", url);          
+          }   
+        }else {
+          for (let i = 0; i < image.length; i++) {          
+            if (['image/jpeg','image/jpg','image/png'].includes(image[i].mimetype)) {
+              let url = await addImage(image[i].data);
+              images.push({url, default: false});
+              console.log("Aqui2");            
+            }
+          }          
+        }
+        await Ad.findByIdAndUpdate(id, {images})
+      }
+    }
+
+
+    res.json({error: 'ok', result});
   }
 }
