@@ -9,8 +9,8 @@ type UserType = {
 }
 
 const schema = new Schema<UserType>({ 
-  name: String,
-  email: { type: String, required: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
   state: String,
   passwordHash: String,
   token: String,

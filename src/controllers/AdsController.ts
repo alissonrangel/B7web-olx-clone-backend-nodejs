@@ -29,7 +29,8 @@ type AdType = {
 }
 
 const addImage = async (buffer: any) => {
-  let newName = `${uuidv4()}.jpg`;
+  let data = new Date();
+  let newName = `${uuidv4()}-${data.getTime()}.jpg`;
   let tmpImg = await jimp.read(buffer);
   tmpImg.cover(500, 500).quality(80).write(`./public/media/${newName}`)
   console.log("NewNAme: ", newName);
@@ -42,11 +43,12 @@ export default {
 
     let categories = [];
 
-    for (const i in cats) {
+    for (let i in cats) {
       categories.push({
         _id: cats[i]._id,
         name: cats[i].name,
         slug: cats[i].slug,
+        // ...cats[i]._doc,
         img: `${process.env.BASE}/static/assets/images/${cats[i].slug}.png`
       })
     }
@@ -106,7 +108,14 @@ export default {
     newAd.description = desc;
     newAd.views = 0;
 
+    //console.log('image0 ', req.files, req.body);
+
+    // if (req.files) {
+    //   console.log('image1 ', req.files);
+    // }
+
     if( req.files && req.files.img ){
+      console.log('image ', req.files.img);
       
       let image: any = req.files.img;
       if (image.length == undefined) {
@@ -120,7 +129,7 @@ export default {
           if (['image/jpeg','image/jpg','image/png'].includes(image[i].mimetype)) {
             let url = await addImage(image[i].data);
             newAd.images.push({url, default: false});
-            console.log("Aqui2");            
+            console.log("Aqui2 ", url);            
           }
         }
       }
@@ -140,7 +149,7 @@ export default {
     let total = 0;
 
     if(q) {
-      filters.title = {'$regex': q, '$options':'i'};
+      filters.title = {'$regex': q, '$options':'i'}; //i case insensitive
     }
 
     if(cat) {
@@ -360,7 +369,7 @@ export default {
             if (['image/jpeg','image/jpg','image/png'].includes(image[i].mimetype)) {
               let url = await addImage(image[i].data);
               images.push({url, default: false});
-              console.log("Aqui2");            
+              console.log("Aqui2 ", url);            
             }
           }          
         }

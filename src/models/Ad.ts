@@ -20,13 +20,13 @@ type AdType = {
 const schema = new Schema<AdType>({ 
   idUser: String,
   state: String,
-  category: String,
+  category: { type: String, required: true },
   images: [{
     url: String,
     default: Boolean
   }],
   dateCreated: Date,
-  title: String,
+  title: { type: String, required: true },
   price: Number,
   priceNegotiable: Boolean,
   description: String,

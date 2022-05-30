@@ -3,12 +3,21 @@ import path from 'path';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { mongoConnect } from './database/mongo';
+import mongoose from 'mongoose';
 import fileupload from 'express-fileupload';
 import routes from './routes';
 
 dotenv.config();
 
 mongoConnect();
+
+// mongoose.connect(process.env.MONGO_URL as string, {
+//   useNewUrlParser: true,
+//   useFindAndModify: false,
+//   useUnifiedTopology: true
+// })
+
+//mongoose.Promise = global.Promise;
 
 const server = express();
 
